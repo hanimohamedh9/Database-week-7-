@@ -91,5 +91,15 @@ SELECT
   depth
 FROM tree
 ORDER BY depth, id;
+ step 5
+CREATE ROLE app_read;
+CREATE ROLE app_write
+GRANT CONNECT ON DATABASE bootcamp TO app_read, app_write;
 
+GRANT USAGE ON SCHEMA public TO app_read, app_write;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO app_read;
+
+CREATE USER api
+LOGIN PASSWORD 'strong-secret'
+IN ROLE app_write;
 

@@ -1,0 +1,95 @@
+ step 1
+
+Create the Audit Log Table
+CREATE TABLE audit_log (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  tbl TEXT,
+  op TEXT,
+  old_row JSONB,
+  new_row JSONB,
+  changed_by TEXT DEFAULT current_user,
+  at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION audit()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO audit_log(tbl, op, old_row, new_row)
+  VALUES (
+    TG_TABLE_NAME,
+    TG_OP,
+    CASE WHEN TG_OP IN ('UPDATE', 'DELETE')
+         THEN to_jsonb(OLD) ELSE NULL END,
+    CASE WHEN TG_OP IN ('INSERT', 'UPDATE')
+         THEN to_jsonb(NEW) ELSE NULL END
+  );
+
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_audit
+AFTER INSERT OR UPDATE OR DELETE
+ON students
+FOR EACH ROW
+EXECUTE FUNCTION audit();
+
+INSERT INTO students (name, age)
+VALUES ('Amina', 22);
+
+UPDATE students
+SET age = 23
+WHERE name = 'Amina';
+
+DELETE FROM students
+WHERE name = 'Amina';
+
+SELECT * FROM audit_log;
+
+
+step 2
+
+UPDATE students
+SET name = 'Kofi M.'
+WHERE id = 1;
+DELETE FROM students
+WHERE id = 3;
+SELECT
+  tbl,
+  op,
+  old_row->>'name' AS was,
+  new_row->>'name' AS now,
+  at
+FROM audit_log
+ORDER BY at DESC;
+
+step 3
+CREATE TABLE categories (
+  id SERIAL PRIMARY KEY,
+  name TEXT,
+  parent_id INT REFERENCES categories(id)
+);
+INSERT INTO categories (name, parent_id) VALUES
+  ('Electronics', NULL),
+  ('Computers', 1),
+  ('Laptops', 2),
+  ('Phones', 1);
+WITH RECURSIVE tree AS (
+  SELECT id, name, parent_id, 0 AS depth
+  FROM categories
+  WHERE parent_id IS NULL
+
+  UNION ALL
+
+  SELECT c.id, c.name, c.parent_id, t.depth + 1
+  FROM categories c
+  JOIN tree t ON c.parent_id = t.id
+)
+SELECT
+  id,
+  name,
+  parent_id,
+  depth
+FROM tree
+ORDER BY depth, id;
+
+

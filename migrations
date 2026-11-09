@@ -1,0 +1,3 @@
+flyway -url=jdbc:postgresql://localhost/bootcamp -user=postgres -locations=filesystem:migrations migrate
+
+flyway -url=jdbc:postgresql://localhost/bootcamp -user=postgres -locations=filesystem:migrations info
